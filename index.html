@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Medical Information Assistant</title>
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f7fa;
+      color: #1a1a2e;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      background: #fff;
+      border-bottom: 1px solid #e8ecf0;
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header .icon { font-size: 1.6rem; }
+    header h1 { font-size: 1.15rem; font-weight: 600; color: #1a1a2e; }
+    header p  { font-size: 0.78rem; color: #888; margin-top: 2px; }
+
+    /* ── Layout ── */
+    .container {
+      max-width: 780px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 28px 16px 100px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ── Topic chips ── */
+    .topics {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .chip {
+      background: #fff;
+      border: 1px solid #dde3ea;
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 0.78rem;
+      color: #555;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      user-select: none;
+    }
+    .chip:hover { background: #eef3ff; border-color: #4a90d9; color: #2563eb; }
+
+    /* ── Chat window ── */
+    #chat {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* ── Bubbles ── */
+    .bubble {
+      max-width: 88%;
+      padding: 13px 16px;
+      border-radius: 14px;
+      line-height: 1.6;
+      font-size: 0.9rem;
+      word-break: break-word;
+    }
+    .bubble.user {
+      align-self: flex-end;
+      background: #2563eb;
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .bubble.bot {
+      align-self: flex-start;
+      background: #fff;
+      border: 1px solid #e4e9f0;
+      border-bottom-left-radius: 4px;
+      color: #1a1a2e;
+    }
+    .bubble.bot.error { border-color: #fca5a5; background: #fff5f5; color: #c0392b; }
+    .bubble.bot.oos   { border-color: #fde68a; background: #fffbeb; color: #92400e; }
+
+    /* answer text inside bot bubble */
+    .answer-text { white-space: pre-wrap; }
+
+    /* disclaimer styling */
+    .disclaimer {
+      margin-top: 10px;
+      padding: 8px 10px;
+      background: #fff7ed;
+      border-left: 3px solid #f97316;
+      border-radius: 4px;
+      font-size: 0.78rem;
+      color: #9a3412;
+      line-height: 1.5;
+    }
+
+    /* sources */
+    .sources {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #e8ecf0;
+      font-size: 0.78rem;
+      color: #666;
+    }
+    .sources strong { color: #2563eb; display: block; margin-bottom: 4px; }
+    .sources ul { list-style: none; display: flex; flex-direction: column; gap: 3px; }
+    .sources li::before { content: "📄 "; }
+
+    /* typing indicator */
+    .typing {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 12px 16px;
+      background: #fff;
+      border: 1px solid #e4e9f0;
+      border-radius: 14px;
+      border-bottom-left-radius: 4px;
+      align-self: flex-start;
+      width: fit-content;
+    }
+    .typing span {
+      width: 7px; height: 7px;
+      background: #aab;
+      border-radius: 50%;
+      animation: bounce 1s infinite;
+    }
+    .typing span:nth-child(2) { animation-delay: 0.15s; }
+    .typing span:nth-child(3) { animation-delay: 0.30s; }
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0); }
+      40%           { transform: translateY(-6px); }
+    }
+
+    /* ── Input bar (sticky) ── */
+    .input-bar {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: #fff;
+      border-top: 1px solid #e8ecf0;
+      padding: 14px 16px;
+    }
+    .input-inner {
+      max-width: 780px;
+      margin: 0 auto;
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+    textarea {
+      flex: 1;
+      resize: none;
+      border: 1px solid #dde3ea;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      line-height: 1.5;
+      max-height: 120px;
+      outline: none;
+      transition: border-color 0.15s;
+      background: #f9fafb;
+    }
+    textarea:focus { border-color: #2563eb; background: #fff; }
+
+    button#send {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 18px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+      height: 42px;
+    }
+    button#send:hover   { background: #1d4ed8; }
+    button#send:disabled { background: #93b4f0; cursor: not-allowed; }
+
+    /* ── Welcome card ── */
+    .welcome {
+      background: #fff;
+      border: 1px solid #e4e9f0;
+      border-radius: 14px;
+      padding: 20px 22px;
+      font-size: 0.88rem;
+      color: #555;
+      line-height: 1.7;
+    }
+    .welcome strong { color: #1a1a2e; }
+
+    /* ── Scroll anchor ── */
+    #anchor {}
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <span class="icon">🏥</span>
+  <div>
+    <h1>Medical Information Assistant</h1>
+    <p>General health education only — not a substitute for professional medical advice</p>
+  </div>
+</header>
+
+<!-- Main -->
+<div class="container">
+
+  <!-- Topic chips -->
+  <div class="topics" id="chips">
+    <span class="chip" data-q="What are the symptoms of diabetes?">🩸 Diabetes</span>
+    <span class="chip" data-q="What is normal blood pressure?">💓 Hypertension</span>
+    <span class="chip" data-q="How do I treat a common cold at home?">🤧 Common Cold</span>
+    <span class="chip" data-q="What are macronutrients?">🥗 Nutrition</span>
+    <span class="chip" data-q="How does exercise help mental health?">🧠 Mental Health</span>
+    <span class="chip" data-q="How much exercise do adults need per week?">🏃 Exercise</span>
+  </div>
+
+  <!-- Chat messages -->
+  <div id="chat">
+    <div class="welcome">
+      <strong>Welcome!</strong> Ask any general health question from the topics above,
+      or type your own. I answer only from my trusted medical knowledge base and
+      <strong>always show my sources</strong>.
+    </div>
+  </div>
+  <div id="anchor"></div>
+
+</div>
+
+<!-- Input bar -->
+<div class="input-bar">
+  <div class="input-inner">
+    <textarea id="input" rows="1" placeholder="Ask a health question…" maxlength="500"></textarea>
+    <button id="send">Ask →</button>
+  </div>
+</div>
+
+<script>
+  const chat    = document.getElementById("chat");
+  const input   = document.getElementById("input");
+  const sendBtn = document.getElementById("send");
+  const anchor  = document.getElementById("anchor");
+
+  // ── Auto-resize textarea ──
+  input.addEventListener("input", () => {
+    input.style.height = "auto";
+    input.style.height = Math.min(input.scrollHeight, 120) + "px";
+  });
+
+  // ── Send on Enter (Shift+Enter = newline) ──
+  input.addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+
+  sendBtn.addEventListener("click", sendMessage);
+
+  // ── Topic chips ──
+  document.getElementById("chips").addEventListener("click", e => {
+    const chip = e.target.closest(".chip");
+    if (!chip) return;
+    input.value = chip.dataset.q;
+    input.style.height = "auto";
+    sendMessage();
+  });
+
+  // ── Helpers ──
+  function scrollDown() {
+    anchor.scrollIntoView({ behavior: "smooth" });
+  }
+
+  function addBubble(html, side, extraClass = "") {
+    const div = document.createElement("div");
+    div.className = `bubble ${side} ${extraClass}`.trim();
+    div.innerHTML = html;
+    chat.appendChild(div);
+    scrollDown();
+    return div;
+  }
+
+  function addTyping() {
+    const div = document.createElement("div");
+    div.className = "typing";
+    div.innerHTML = "<span></span><span></span><span></span>";
+    chat.appendChild(div);
+    scrollDown();
+    return div;
+  }
+
+  // ── Split answer text and disclaimer ──
+  function parseAnswer(raw) {
+    const marker = "\n\n⚠️  DISCLAIMER:";
+    const idx = raw.indexOf(marker);
+    if (idx === -1) return { body: raw, disclaimer: "" };
+    return {
+      body:       raw.slice(0, idx).trim(),
+      disclaimer: raw.slice(idx + 2).trim()   // strip leading \n\n
+    };
+  }
+
+  // ── Main send function ──
+  async function sendMessage() {
+    const question = input.value.trim();
+    if (!question) return;
+
+    // Show user bubble
+    addBubble(escHtml(question), "user");
+    input.value = "";
+    input.style.height = "auto";
+    sendBtn.disabled = true;
+
+    // Typing indicator
+    const typing = addTyping();
+
+    try {
+      const res = await fetch("/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question })
+      });
+      const data = await res.json();
+      typing.remove();
+
+      if (data.error) {
+        addBubble(`⚠️ ${escHtml(data.error)}`, "bot", "error");
+        return;
+      }
+
+      if (!data.found) {
+        // Out-of-scope
+        const { body, disclaimer } = parseAnswer(data.answer);
+        addBubble(
+          `<div class="answer-text">${escHtml(body)}</div>` +
+          (disclaimer ? `<div class="disclaimer">${escHtml(disclaimer)}</div>` : ""),
+          "bot", "oos"
+        );
+        return;
+      }
+
+      // ── Found — render answer + sources ──
+      const { body, disclaimer } = parseAnswer(data.answer);
+
+      // Strip the "Based on the information..." prefix for cleaner display
+      const cleanBody = body
+        .replace(/^Based on the information in my medical knowledge base, here is what I found regarding your question:\n\n/, "")
+        .trim();
+
+      let sourcesHtml = "";
+      if (data.sources && data.sources.length) {
+        const items = data.sources.map(s => `<li>${escHtml(s)}</li>`).join("");
+        const scoreText = data.scores && data.scores.length
+          ? ` <span style="color:#aaa;font-size:0.72rem">(scores: ${data.scores.join(", ")})</span>`
+          : "";
+        sourcesHtml = `
+          <div class="sources">
+            <strong>📚 Sources${scoreText}</strong>
+            <ul>${items}</ul>
+          </div>`;
+      }
+
+      addBubble(
+        `<div class="answer-text">${escHtml(cleanBody)}</div>` +
+        (disclaimer ? `<div class="disclaimer">${escHtml(disclaimer)}</div>` : "") +
+        sourcesHtml,
+        "bot"
+      );
+
+    } catch (err) {
+      typing.remove();
+      addBubble("⚠️ Could not reach the server. Make sure the Flask app is running.", "bot", "error");
+    } finally {
+      sendBtn.disabled = false;
+      input.focus();
+    }
+  }
+
+  function escHtml(str) {
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+</script>
+
+</body>
+</html>

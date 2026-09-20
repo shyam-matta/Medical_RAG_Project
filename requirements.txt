@@ -1,0 +1,5 @@
+# Medical RAG Assistant - Requirements
+flask==3.0.3
+
+# Standard library modules used (no install needed):
+#   os, sys, re, math, typing
